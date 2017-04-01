@@ -216,15 +216,13 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 		return;
 	}
 
+	if (unlikely(used_new_key))
+		peer->sent_lastminute_handshake = false;
+
 	socket_set_peer_endpoint(peer, endpoint);
 
 	wg = peer->device;
 	dev = netdev_pub(wg);
-
-	if (unlikely(used_new_key)) {
-		peer->sent_lastminute_handshake = false;
-		packet_send_queue(peer);
-	}
 
 	keep_key_fresh(peer);
 
@@ -283,6 +281,8 @@ packet_processed:
 continue_processing:
 	timers_any_authenticated_packet_received(peer);
 	timers_any_authenticated_packet_traversal(peer);
+	if (unlikely(used_new_key))
+		packet_send_queue(peer);
 	peer_put(peer);
 }
 
