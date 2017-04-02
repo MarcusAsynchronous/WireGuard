@@ -120,14 +120,14 @@ void packet_send_keepalive(struct wireguard_peer *peer)
 
 static void message_create_data_done(struct sk_buff_head *queue, struct wireguard_peer *peer)
 {
-	struct sk_buff *skb, *tmp;
+	struct sk_buff *skb;
 	bool is_keepalive, data_sent = false;
 
 	if (unlikely(!skb_queue_len(queue)))
 		return;
 
 	timers_any_authenticated_packet_traversal(peer);
-	skb_queue_walk_safe(queue, skb, tmp) {
+	while ((skb = __skb_dequeue(queue)) != NULL) {
 		is_keepalive = skb->len == message_data_len(0);
 		if (likely(!socket_send_skb_to_peer(peer, skb, PACKET_CB(skb)->ds) && !is_keepalive))
 			data_sent = true;
