@@ -177,7 +177,6 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 	while (skb) {
 		struct sk_buff *next = skb->next;
 		skb->next = skb->prev = NULL;
-
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (unlikely(!skb))
 			continue;
@@ -186,6 +185,8 @@ static netdev_tx_t xmit(struct sk_buff *skb, struct net_device *dev)
 		 * so at this point we're in a position to drop it. */
 		skb_dst_drop(skb);
 
+		memset(skb->cb, 0, sizeof(skb->cb));
+		atomic_set(&PACKET_CB(skb)->state, PACKET_ENQUEUED);
 		skb_queue_tail(&peer->tx_packet_queue, skb);
 		skb = next;
 	}
@@ -234,11 +235,8 @@ static void destruct(struct net_device *dev)
 	peer_remove_all(wg);
 	wg->incoming_port = 0;
 	destroy_workqueue(wg->workqueue);
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->parallel_send);
-	padata_free(wg->parallel_receive);
-	destroy_workqueue(wg->parallelqueue);
-#endif
+	destroy_workqueue(wg->parallel_encrypt);
+	destroy_workqueue(wg->parallel_decrypt);
 	routing_table_free(&wg->peer_routing_table);
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
 	skb_queue_purge(&wg->incoming_handshakes);
@@ -306,60 +304,48 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 	if (!dev->tstats)
 		goto error_1;
 
-	wg->workqueue = alloc_workqueue("wg-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
+	wg->workqueue = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->workqueue)
 		goto error_2;
 
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	wg->parallelqueue = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
-	if (!wg->parallelqueue)
+	wg->parallel_encrypt = alloc_workqueue("wg-enc-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
+	if (!wg->parallel_encrypt)
 		goto error_3;
 
-	wg->parallel_send = padata_alloc_possible(wg->parallelqueue);
-	if (!wg->parallel_send)
+	wg->parallel_decrypt = alloc_workqueue("wg-dec-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
+	if (!wg->parallel_decrypt)
 		goto error_4;
-	padata_start(wg->parallel_send);
-
-	wg->parallel_receive = padata_alloc_possible(wg->parallelqueue);
-	if (!wg->parallel_receive)
-		goto error_5;
-	padata_start(wg->parallel_receive);
-#endif
 
 	ret = cookie_checker_init(&wg->cookie_checker, wg);
 	if (ret < 0)
-		goto error_6;
+		goto error_5;
 
 #ifdef CONFIG_PM_SLEEP
 	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
 	ret = register_pm_notifier(&wg->clear_peers_on_suspend);
 	if (ret < 0)
-		goto error_7;
+		goto error_6;
 #endif
 
 	ret = register_netdevice(dev);
 	if (ret < 0)
-		goto error_8;
+		goto error_7;
 
 	pr_debug("Device %s has been created\n", dev->name);
 
 	return 0;
 
-error_8:
+error_7:
 #ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
-error_7:
+error_6:
 #endif
 	cookie_checker_uninit(&wg->cookie_checker);
-error_6:
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	padata_free(wg->parallel_receive);
 error_5:
-	padata_free(wg->parallel_send);
+	destroy_workqueue(wg->parallel_decrypt);
 error_4:
-	destroy_workqueue(wg->parallelqueue);
+	destroy_workqueue(wg->parallel_encrypt);
 error_3:
-#endif
 	destroy_workqueue(wg->workqueue);
 error_2:
 	free_percpu(dev->tstats);

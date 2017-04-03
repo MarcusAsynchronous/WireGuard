@@ -38,8 +38,11 @@ struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_
 	cookie_checker_precompute_keys(&wg->cookie_checker, peer);
 	mutex_init(&peer->keypairs.keypair_update_lock);
 	INIT_WORK(&peer->transmit_handshake_work, packet_send_queued_handshakes);
+	INIT_WORK(&peer->encrypt_packet_work, packet_encrypt);
+	INIT_WORK(&peer->decrypt_packet_work, packet_decrypt);
 	rwlock_init(&peer->endpoint_lock);
 	skb_queue_head_init(&peer->tx_packet_queue);
+	skb_queue_head_init(&peer->rx_packet_queue);
 	kref_init(&peer->refcount);
 	pubkey_hashtable_add(&wg->peer_hashtable, peer);
 	list_add_tail(&peer->peer_list, &wg->peer_list);

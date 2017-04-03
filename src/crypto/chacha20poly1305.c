@@ -719,7 +719,8 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 
 bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *src, const size_t src_len,
 				 const u8 *ad, const size_t ad_len,
-				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN])
+				 const u64 nonce, const u8 key[CHACHA20POLY1305_KEYLEN],
+				 bool have_simd)
 {
 	struct poly1305_ctx poly1305_state;
 	struct chacha20_ctx chacha20_state;
@@ -730,12 +731,9 @@ bool chacha20poly1305_decrypt_sg(struct scatterlist *dst, struct scatterlist *sr
 	size_t dst_len;
 	__le64 len;
 	__le64 le_nonce = cpu_to_le64(nonce);
-	bool have_simd;
 
 	if (unlikely(src_len < POLY1305_MAC_SIZE))
 		return false;
-
-	have_simd = chacha20poly1305_init_simd();
 
 	chacha20_keysetup(&chacha20_state, key, (u8 *)&le_nonce);
 
@@ -782,7 +780,6 @@ err:
 	memzero_explicit(read_mac, POLY1305_MAC_SIZE);
 	memzero_explicit(computed_mac, POLY1305_MAC_SIZE);
 	memzero_explicit(&chacha20_state, sizeof(chacha20_state));
-	chacha20poly1305_deinit_simd(have_simd);
 	return !ret;
 }
 

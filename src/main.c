@@ -30,26 +30,16 @@ static int __init mod_init(void)
 	if (ret < 0)
 		return ret;
 
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	ret = packet_init_data_caches();
-	if (ret < 0)
-		goto err_packet;
-#endif
-
 	ret = device_init();
 	if (ret < 0)
-		goto err_device;
+		goto err;
 
 	pr_info("WireGuard " WIREGUARD_VERSION " loaded. See www.wireguard.io for information.\n");
 	pr_info("Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.\n");
 
 	return 0;
 
-err_device:
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	packet_deinit_data_caches();
-err_packet:
-#endif
+err:
 	ratelimiter_module_deinit();
 	return ret;
 }
@@ -57,9 +47,6 @@ err_packet:
 static void __exit mod_exit(void)
 {
 	device_uninit();
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	packet_deinit_data_caches();
-#endif
 	ratelimiter_module_deinit();
 	pr_debug("WireGuard has been unloaded\n");
 }

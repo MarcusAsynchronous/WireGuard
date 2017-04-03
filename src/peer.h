@@ -35,6 +35,7 @@ struct wireguard_peer {
 	struct noise_keypairs keypairs;
 	u64 last_sent_handshake;
 	struct work_struct transmit_handshake_work, clear_peer_work;
+	struct work_struct decrypt_packet_work, encrypt_packet_work;
 	struct cookie latest_cookie;
 	struct hlist_node pubkey_hash;
 	u64 rx_bytes, tx_bytes;
@@ -46,14 +47,11 @@ struct wireguard_peer {
 	bool need_resend_queue;
 	bool sent_lastminute_handshake;
 	struct timeval walltime_last_handshake;
-	struct sk_buff_head tx_packet_queue;
+	struct sk_buff_head tx_packet_queue, rx_packet_queue;
 	struct kref refcount;
 	struct rcu_head rcu;
 	struct list_head peer_list;
 	u64 internal_id;
-#ifdef CONFIG_WIREGUARD_PARALLEL
-	atomic_t parallel_encryption_inflight;
-#endif
 };
 
 struct wireguard_peer *peer_create(struct wireguard_device *wg, const u8 public_key[NOISE_PUBLIC_KEY_LEN]);

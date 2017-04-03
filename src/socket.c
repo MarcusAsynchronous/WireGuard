@@ -128,7 +128,6 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 		if (cache)
 			dst_cache_set_ip6(cache, dst, &fl.saddr);
 	}
-
 	udp_tunnel6_xmit_skb(dst, sock, skb, skb->dev,
 			     &fl.saddr, &fl.daddr,
 			     ds, ip6_dst_hoplimit(dst), 0,

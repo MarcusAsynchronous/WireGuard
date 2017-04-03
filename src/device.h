@@ -13,7 +13,6 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
-#include <linux/padata.h>
 #include <linux/notifier.h>
 
 struct wireguard_device {
@@ -22,8 +21,7 @@ struct wireguard_device {
 	u32 fwmark;
 	struct net *creating_net;
 	struct workqueue_struct *workqueue;
-	struct workqueue_struct *parallelqueue;
-	struct padata_instance *parallel_send, *parallel_receive;
+	struct workqueue_struct *parallel_encrypt, *parallel_decrypt;
 	struct noise_static_identity static_identity;
 	struct sk_buff_head incoming_handshakes;
 	struct work_struct incoming_handshakes_work;
