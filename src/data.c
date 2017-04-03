@@ -225,7 +225,7 @@ static inline void queue_encrypt_reset(struct sk_buff_head *queue, struct noise_
 	bool have_simd = chacha20poly1305_init_simd();
 	skb_queue_walk_safe(queue, skb, tmp) {
 		if (unlikely(!skb_encrypt(skb, keypair, have_simd))) {
-			skb_unlink(skb, queue);
+			__skb_unlink(skb, queue);
 			kfree_skb(skb);
 			continue;
 		}
@@ -361,14 +361,12 @@ err:
 
 static void finish_decrypt_packet(struct decryption_ctx *ctx)
 {
-	struct noise_keypairs *keypairs;
 	bool used_new_key = false;
 	u64 nonce = PACKET_CB(ctx->skb)->nonce;
 	int ret = ctx->ret;
 	if (ret)
 		goto err;
 
-	keypairs = &ctx->keypair->entry.peer->keypairs;
 	ret = counter_validate(&ctx->keypair->receiving.counter, nonce) ? 0 : -ERANGE;
 
 	if (likely(!ret))

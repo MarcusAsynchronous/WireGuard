@@ -213,6 +213,7 @@ static void receive_data_packet(struct sk_buff *skb, struct wireguard_peer *peer
 
 	if (unlikely(err < 0 || !peer || !endpoint)) {
 		dev_kfree_skb(skb);
+		peer_put(peer);
 		return;
 	}
 
