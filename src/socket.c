@@ -30,7 +30,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 	skb->next = skb->prev = NULL;
 	skb->dev = netdev_pub(wg);
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	sock = rcu_dereference(wg->sock4);
 
 	if (unlikely(!sock)) {
@@ -73,7 +73,7 @@ static inline int send4(struct wireguard_device *wg, struct sk_buff *skb, struct
 err:
 	kfree_skb(skb);
 out:
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return ret;
 }
 
@@ -97,7 +97,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 	skb->next = skb->prev = NULL;
 	skb->dev = netdev_pub(wg);
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	sock = rcu_dereference(wg->sock6);
 
 	if (unlikely(!sock)) {
@@ -139,7 +139,7 @@ static inline int send6(struct wireguard_device *wg, struct sk_buff *skb, struct
 err:
 	kfree_skb(skb);
 out:
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return ret;
 #else
 	return -EAFNOSUPPORT;

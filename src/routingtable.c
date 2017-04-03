@@ -385,11 +385,11 @@ inline struct wireguard_peer *routing_table_lookup_v4(struct routing_table *tabl
 	struct wireguard_peer *peer = NULL;
 	struct routing_table_node *node;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	node = find_node(rcu_dereference(table->root4), 32, (const u8 *)ip);
 	if (node)
 		peer = peer_get(node->peer);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return peer;
 }
 
@@ -399,11 +399,11 @@ inline struct wireguard_peer *routing_table_lookup_v6(struct routing_table *tabl
 	struct wireguard_peer *peer = NULL;
 	struct routing_table_node *node;
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	node = find_node(rcu_dereference(table->root6), 128, (const u8 *)ip);
 	if (node)
 		peer = peer_get(node->peer);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return peer;
 }
 
@@ -439,28 +439,28 @@ int routing_table_remove_by_peer(struct routing_table *table, struct wireguard_p
 int routing_table_walk_ips(struct routing_table *table, void *ctx, int (*func)(void *ctx, struct wireguard_peer *peer, union nf_inet_addr ip, u8 cidr, int family))
 {
 	int ret;
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	ret = walk_ips(rcu_dereference(table->root4), AF_INET, ctx, func, NULL);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	if (ret)
 		return ret;
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	ret = walk_ips(rcu_dereference(table->root6), AF_INET6, ctx, func, NULL);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return ret;
 }
 
 int routing_table_walk_ips_by_peer(struct routing_table *table, void *ctx, struct wireguard_peer *peer, int (*func)(void *ctx, union nf_inet_addr ip, u8 cidr, int family))
 {
 	int ret;
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	ret = walk_ips_by_peer(rcu_dereference(table->root4), AF_INET, ctx, peer, func, NULL);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	if (ret)
 		return ret;
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	ret = walk_ips_by_peer(rcu_dereference(table->root6), AF_INET6, ctx, peer, func, NULL);
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return ret;
 }
 

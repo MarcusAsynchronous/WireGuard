@@ -97,7 +97,7 @@ void noise_keypair_put(struct noise_keypair *keypair)
 
 struct noise_keypair *noise_keypair_get(struct noise_keypair *keypair)
 {
-	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "Calling noise_keypair_get without holding the RCU read lock.");
+	RCU_LOCKDEP_WARN(!rcu_read_lock_bh_held(), "Calling noise_keypair_get without holding the RCU BH read lock.");
 	if (unlikely(!keypair || !kref_get_unless_zero(&keypair->refcount)))
 		return NULL;
 	return keypair;
@@ -167,7 +167,7 @@ bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_k
 
 	/* TODO: probably this needs the actual mutex, but we're in atomic context,
 	 * so we can't take it here. Instead we just rely on RCU for the lookups. */
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	if (unlikely(received_keypair == rcu_dereference(keypairs->next_keypair))) {
 		ret = true;
 		/* When we've finally received the confirmation, we slide the next
@@ -179,7 +179,7 @@ bool noise_received_with_keypair(struct noise_keypairs *keypairs, struct noise_k
 		rcu_assign_pointer(keypairs->current_keypair, received_keypair);
 		rcu_assign_pointer(keypairs->next_keypair, NULL);
 	}
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	return ret;
 }

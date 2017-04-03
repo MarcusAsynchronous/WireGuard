@@ -65,11 +65,11 @@ __le32 index_hashtable_insert(struct index_hashtable *table, struct index_hashta
 {
 	struct index_hashtable_entry *existing_entry;
 
-	spin_lock(&table->lock);
+	spin_lock_bh(&table->lock);
 	hlist_del_init_rcu(&entry->index_hash);
-	spin_unlock(&table->lock);
+	spin_unlock_bh(&table->lock);
 
-	rcu_read_lock();
+	rcu_read_lock_bh();
 
 search_unused_slot:
 	/* First we try to find an unused slot, randomly, while unlocked. */
@@ -81,43 +81,43 @@ search_unused_slot:
 
 	/* Once we've found an unused slot, we lock it, and then double-check
 	 * that nobody else stole it from us. */
-	spin_lock(&table->lock);
+	spin_lock_bh(&table->lock);
 	hlist_for_each_entry_rcu(existing_entry, index_bucket(table, entry->index), index_hash) {
 		if (existing_entry->index == entry->index) {
-			spin_unlock(&table->lock);
+			spin_unlock_bh(&table->lock);
 			goto search_unused_slot; /* If it was stolen, we start over. */
 		}
 	}
 	/* Otherwise, we know we have it exclusively (since we're locked), so we insert. */
 	hlist_add_head_rcu(&entry->index_hash, index_bucket(table, entry->index));
-	spin_unlock(&table->lock);
+	spin_unlock_bh(&table->lock);
 
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	return entry->index;
 }
 
 void index_hashtable_replace(struct index_hashtable *table, struct index_hashtable_entry *old, struct index_hashtable_entry *new)
 {
-	spin_lock(&table->lock);
+	spin_lock_bh(&table->lock);
 	new->index = old->index;
 	hlist_replace_rcu(&old->index_hash, &new->index_hash);
 	INIT_HLIST_NODE(&old->index_hash);
-	spin_unlock(&table->lock);
+	spin_unlock_bh(&table->lock);
 }
 
 void index_hashtable_remove(struct index_hashtable *table, struct index_hashtable_entry *entry)
 {
-	spin_lock(&table->lock);
+	spin_lock_bh(&table->lock);
 	hlist_del_init_rcu(&entry->index_hash);
-	spin_unlock(&table->lock);
+	spin_unlock_bh(&table->lock);
 }
 
 /* Returns a strong reference to a entry->peer */
 struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *table, const enum index_hashtable_type type_mask, const __le32 index)
 {
 	struct index_hashtable_entry *iter_entry, *entry = NULL;
-	rcu_read_lock();
+	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu(iter_entry, index_bucket(table, index), index_hash) {
 		if (iter_entry->index == index && (iter_entry->type & type_mask)) {
 			entry = iter_entry;
@@ -129,6 +129,6 @@ struct index_hashtable_entry *index_hashtable_lookup(struct index_hashtable *tab
 		if (unlikely(!entry->peer))
 			entry = NULL;
 	}
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 	return entry;
 }
