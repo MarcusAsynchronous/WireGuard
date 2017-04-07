@@ -36,7 +36,7 @@ struct wireguard_device {
 	struct notifier_block clear_peers_on_suspend;
 #endif
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	struct workqueue_struct *encrypt_wq, *decrypt_wq;
+	struct workqueue_struct *crypt_wq;
 	struct padata_instance *encrypt_pd, *decrypt_pd;
 #endif
 };

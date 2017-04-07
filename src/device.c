@@ -237,8 +237,7 @@ static void destruct(struct net_device *dev)
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	padata_free(wg->encrypt_pd);
 	padata_free(wg->decrypt_pd);
-	destroy_workqueue(wg->encrypt_wq);
-	destroy_workqueue(wg->decrypt_wq);
+	destroy_workqueue(wg->crypt_wq);
 #endif
 	routing_table_free(&wg->peer_routing_table);
 	memzero_explicit(&wg->static_identity, sizeof(struct noise_static_identity));
@@ -312,59 +311,53 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 		goto error_2;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	wg->encrypt_wq = alloc_workqueue("wg-enc-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
-	if (!wg->encrypt_wq)
+	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
+	if (!wg->crypt_wq)
 		goto error_3;
 
-	wg->decrypt_wq = alloc_workqueue("wg-dec-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
-	if (!wg->decrypt_wq)
-		goto error_4;
-
-	wg->encrypt_pd = padata_alloc_possible(wg->encrypt_wq);
+	wg->encrypt_pd = padata_alloc_possible(wg->crypt_wq);
 	if (!wg->encrypt_pd)
-		goto error_5;
+		goto error_4;
 	padata_start(wg->encrypt_pd);
 
-	wg->decrypt_pd = padata_alloc_possible(wg->decrypt_wq);
+	wg->decrypt_pd = padata_alloc_possible(wg->crypt_wq);
 	if (!wg->decrypt_pd)
-		goto error_6;
+		goto error_5;
 	padata_start(wg->decrypt_pd);
 #endif
 
 	ret = cookie_checker_init(&wg->cookie_checker, wg);
 	if (ret < 0)
-		goto error_7;
+		goto error_6;
 
 #ifdef CONFIG_PM_SLEEP
 	wg->clear_peers_on_suspend.notifier_call = suspending_clear_noise_peers;
 	ret = register_pm_notifier(&wg->clear_peers_on_suspend);
 	if (ret < 0)
-		goto error_8;
+		goto error_7;
 #endif
 
 	ret = register_netdevice(dev);
 	if (ret < 0)
-		goto error_9;
+		goto error_8;
 
 	pr_debug("Device %s has been created\n", dev->name);
 
 	return 0;
 
-error_9:
+error_8:
 #ifdef CONFIG_PM_SLEEP
 	unregister_pm_notifier(&wg->clear_peers_on_suspend);
-error_8:
+error_7:
 #endif
 	cookie_checker_uninit(&wg->cookie_checker);
-error_7:
+error_6:
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	padata_free(wg->decrypt_pd);
-error_6:
-	padata_free(wg->encrypt_pd);
 error_5:
-	destroy_workqueue(wg->decrypt_wq);
+	padata_free(wg->encrypt_pd);
 error_4:
-	destroy_workqueue(wg->encrypt_wq);
+	destroy_workqueue(wg->crypt_wq);
 error_3:
 #endif
 	destroy_workqueue(wg->handshake_wq);
