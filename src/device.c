@@ -312,11 +312,11 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 		goto error_2;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	wg->encrypt_wq = alloc_workqueue("wg-enc-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
+	wg->encrypt_wq = alloc_workqueue("wg-enc-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
 	if (!wg->encrypt_wq)
 		goto error_3;
 
-	wg->decrypt_wq = alloc_workqueue("wg-dec-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
+	wg->decrypt_wq = alloc_workqueue("wg-dec-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
 	if (!wg->decrypt_wq)
 		goto error_4;
 
