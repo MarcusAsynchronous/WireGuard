@@ -311,7 +311,7 @@ static int newlink(struct net *src_net, struct net_device *dev, struct nlattr *t
 		goto error_2;
 
 #ifdef CONFIG_WIREGUARD_PARALLEL
-	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
+	wg->crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 1, dev->name);
 	if (!wg->crypt_wq)
 		goto error_3;
 
